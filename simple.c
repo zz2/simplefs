@@ -208,7 +208,7 @@ static int simplefs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	BUG_ON(!bh);
 
 	record = (struct simplefs_dir_record *)bh->b_data;
-	for (i = 0; i < sfs_inode->dir_children_count; i++) {
+	for (i = 0; i < sfs_inode->data_size.dir_children_count; i++) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0)
 		dir_emit(ctx, record->filename, SIMPLEFS_FILENAME_MAXLEN,
 			record->inode_no, DT_UNKNOWN);
@@ -281,7 +281,7 @@ ssize_t simplefs_read(struct file * filp, char __user * buf, size_t len,
 	char *buffer;
 	int nbytes;
 
-	if (*ppos >= inode->file_size) {
+	if (*ppos >= inode->data_size.file_size) {
 		/* Read request with offset beyond the filesize */
 		return 0;
 	}
@@ -296,7 +296,7 @@ ssize_t simplefs_read(struct file * filp, char __user * buf, size_t len,
 	}
 
 	buffer = (char *)bh->b_data;
-	nbytes = min((size_t) inode->file_size, len);
+	nbytes = min((size_t) inode->data_size.file_size, len);
 
 	if (copy_to_user(buf, buffer, nbytes)) {
 		brelse(bh);
@@ -427,7 +427,7 @@ ssize_t simplefs_write(struct file * filp, const char __user * buf, size_t len,
 	brelse(bh);
 
 	/* Set new size
-	 * sfs_inode->file_size = max(sfs_inode->file_size, *ppos);
+	 * sfs_inode->data_size.file_size = max(sfs_inode->data_size.file_size, *ppos);
 	 *
 	 * FIXME: What to do if someone writes only some parts in between ?
 	 * The above code will also fail in case a file is overwritten with
@@ -436,7 +436,7 @@ ssize_t simplefs_write(struct file * filp, const char __user * buf, size_t len,
 		sfs_trace("Failed to acquire mutex lock\n");
 		return -EINTR;
 	}
-	sfs_inode->file_size = *ppos;
+	sfs_inode->data_size.file_size = *ppos;
 	retval = simplefs_inode_save(sb, sfs_inode);
 	if (retval) {
 		len = retval;
@@ -532,11 +532,11 @@ static int simplefs_create_fs_object(struct inode *dir, struct dentry *dentry,
 
 	if (S_ISDIR(mode)) {
 		printk(KERN_INFO "New directory creation request\n");
-		sfs_inode->dir_children_count = 0;
+		sfs_inode->data_size.dir_children_count = 0;
 		inode->i_fop = &simplefs_dir_operations;
 	} else if (S_ISREG(mode)) {
 		printk(KERN_INFO "New file creation request\n");
-		sfs_inode->file_size = 0;
+		sfs_inode->data_size.file_size = 0;
 		inode->i_fop = &simplefs_file_operations;
 	}
 
@@ -563,7 +563,7 @@ static int simplefs_create_fs_object(struct inode *dir, struct dentry *dentry,
 	dir_contents_datablock = (struct simplefs_dir_record *)bh->b_data;
 
 	/* Navigate to the last record in the directory contents */
-	dir_contents_datablock += parent_dir_inode->dir_children_count;
+	dir_contents_datablock += parent_dir_inode->data_size.dir_children_count;
 
 	dir_contents_datablock->inode_no = sfs_inode->inode_no;
 	strcpy(dir_contents_datablock->filename, dentry->d_name.name);
@@ -578,7 +578,7 @@ static int simplefs_create_fs_object(struct inode *dir, struct dentry *dentry,
 		return -EINTR;
 	}
 
-	parent_dir_inode->dir_children_count++;
+	parent_dir_inode->data_size.dir_children_count++;
 	ret = simplefs_inode_save(sb, parent_dir_inode);
 	if (ret) {
 		mutex_unlock(&simplefs_inodes_mgmt_lock);
@@ -657,7 +657,7 @@ struct dentry *simplefs_lookup(struct inode *parent_inode,
 				parent->inode_no, parent->data_block_number);
 
 	record = (struct simplefs_dir_record *)bh->b_data;
-	for (i = 0; i < parent->dir_children_count; i++) {
+	for (i = 0; i < parent->data_size.dir_children_count; i++) {
 		sfs_trace("Have file: '%s' (ino=%llu)\n",
 					record->filename, record->inode_no);
 

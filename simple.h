@@ -61,7 +61,7 @@ struct simplefs_inode {
 	union {
 		uint64_t file_size;
 		uint64_t dir_children_count;
-	};
+	} data_size;
 };
 
 const int SIMPLEFS_MAX_FILESYSTEM_OBJECTS_SUPPORTED = 64;

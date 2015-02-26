@@ -45,7 +45,7 @@ static int write_root_inode(int fd)
 	root_inode.mode = S_IFDIR;
 	root_inode.inode_no = SIMPLEFS_ROOTDIR_INODE_NUMBER;
 	root_inode.data_block_number = SIMPLEFS_ROOTDIR_DATABLOCK_NUMBER;
-	root_inode.dir_children_count = 1;
+	root_inode.data_size.dir_children_count = 1;
 
 	ret = write(fd, &root_inode, sizeof(root_inode));
 
@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
 		.mode = S_IFREG,
 		.inode_no = WELCOMEFILE_INODE_NUMBER,
 		.data_block_number = WELCOMEFILE_DATABLOCK_NUMBER,
-		.file_size = sizeof(welcomefile_body),
+		.data_size.file_size = sizeof(welcomefile_body),
 	};
 	struct simplefs_dir_record record = {
 		.filename = "vanakkam",
@@ -198,7 +198,7 @@ int main(int argc, char *argv[])
 
 		if (write_dirent(fd, &record))
 			break;
-		if (write_block(fd, welcomefile_body, welcome.file_size))
+		if (write_block(fd, welcomefile_body, welcome.data_size.file_size))
 			break;
 
 		ret = 0;
